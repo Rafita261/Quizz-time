@@ -116,8 +116,18 @@ app.get('/admin/login', (req, res) => res.render('admin-login', { error: null })
 app.post('/admin/login', async (req, res) => {
   const id = String(req.body.adminId || '');
   const password = String(req.body.password || '');
-  if (id === ADMIN_ID && password === ADMIN_PASSWORD) { req.session.isAdmin = true; return res.redirect('/admin'); }
-  res.status(401).render('admin-login', { error: 'Identifiant ou mot de passe incorrect.' });
+  if (id === ADMIN_ID && password === ADMIN_PASSWORD) {
+  req.session.isAdmin = true;
+
+  return req.session.save((err) => {
+    if (err) {
+      console.error('Erreur session :', err);
+      return res.status(500).send('Erreur de session');
+    }
+
+    return res.redirect('/admin');
+  });
+}
 });
 app.post('/admin/logout', adminOnly, (req, res) => { req.session.isAdmin = false; res.redirect('/'); });
 app.get('/admin', adminOnly, (req, res) => res.render('admin', { questions: store.questions, players: [...store.players].sort((a,b)=>b.score-a.score), settings: store.settings, message: null }));
