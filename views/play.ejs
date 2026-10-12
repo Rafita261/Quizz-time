@@ -1,8 +1,24 @@
 <%- include('partials/head', {settings}) %>
-<section class="quiz-top"><div><span class="eyebrow">JOUEUR · <%= player.nickname %></span><h1>Question <%= index %> <small>/ <%= total %></small></h1></div><div class="timer-pill">◷ <strong id="timer"><%= question.seconds %></strong><span>sec</span></div></section>
+<% if (quizState !== 'started') { %>
+<section class="question-card waiting-card" style="text-align:center;max-width:680px;margin:55px auto;padding:45px 30px">
+  <div class="avatar">✳</div><span class="eyebrow">WAITING ROOM</span>
+  <h1 id="waitingTitle" style="margin:16px 0">Waiting for the quiz to start…</h1>
+  <p id="waitingMessage">Stay on this page. The host will start the quiz for everyone.</p>
+  <div id="countdownNumber" style="font-size:100px;line-height:1.2;font-weight:800;color:var(--purple);margin:18px 0"><%= quizState === 'countdown' ? '10' : '—' %></div>
+  <p class="muted">You’ll start automatically when the countdown ends.</p>
+</section>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(()=>{const socket=io();const title=document.getElementById('waitingTitle'),msg=document.getElementById('waitingMessage'),number=document.getElementById('countdownNumber');let startAt=<%- JSON.stringify(quizStartAt) %>,state=<%- JSON.stringify(quizState) %>,redirecting=false;
+function update(s){state=s.state;startAt=s.startAt;if(state==='started'){if(!redirecting){redirecting=true;location.href='/play'}return}if(state==='countdown'){title.textContent='The quiz starts in…';msg.textContent='Get ready! Everyone starts together.'}else{title.textContent='Waiting for the quiz to start…';msg.textContent='Stay on this page. The host will start the quiz for everyone.'}}
+socket.on('quiz-state',update);function tick(){if(state==='countdown'&&startAt){const left=Math.max(0,Math.ceil((startAt-Date.now())/1000));number.textContent=left;if(left<=0){title.textContent='Here we go!';number.textContent='0';setTimeout(()=>{if(!redirecting){redirecting=true;location.href='/play'}},150)}}}setInterval(tick,100);tick();})();
+</script>
+<% } else { %>
+<section class="quiz-top"><div><span class="eyebrow">PLAYER · <%= player.nickname %></span><h1>Question <%= index %> <small>/ <%= total %></small></h1></div><div class="timer-pill">◷ <strong id="timer"><%= question.seconds %></strong><span>sec</span></div></section>
 <div class="progress"><span style="width:<%= Math.round((index-1)/total*100) %>%"></span></div>
-<section class="question-card"><div class="question-meta"><span class="type-pill"><%= question.type === 'tf' ? 'VRAI / FAUX' : 'QCM' %></span><span><%= question.points %> pts + bonus vitesse</span></div><h2><%= question.text %></h2><form id="answerForm" action="/answer" method="post"><input type="hidden" name="questionId" value="<%= question.id %>"><input type="hidden" id="elapsedSeconds" name="elapsedSeconds" value="0"><div class="answer-grid <%= question.type === 'tf' ? 'tf-grid' : '' %>"><% question.options.forEach((option, i) => { %><label class="answer-option"><input type="radio" name="answer" value="<%= option %>" required><span class="letter"><%= String.fromCharCode(65+i) %></span><span><%= option %></span><span class="radio-dot"></span></label><% }) %></div><button class="btn btn-primary full submit-answer" type="submit">Valider ma réponse →</button></form></section>
+<section class="question-card"><div class="question-meta"><span class="type-pill"><%= question.type === 'tf' ? 'TRUE / FALSE' : 'Multiple choice' %></span><span><%= question.points %> pts + speed bonus</span></div><h2><%= question.text %></h2><form id="answerForm" action="/answer" method="post"><input type="hidden" name="questionId" value="<%= question.id %>"><input type="hidden" id="elapsedSeconds" name="elapsedSeconds" value="0"><div class="answer-grid <%= question.type === 'tf' ? 'tf-grid' : '' %>"><% question.options.forEach((option, i) => { %><label class="answer-option"><input type="radio" name="answer" value="<%= option %>" required><span class="letter"><%= String.fromCharCode(65+i) %></span><span><%= option %></span><span class="radio-dot"></span></label><% }) %></div><button class="btn btn-primary full submit-answer" type="submit">Submit my answer →</button></form></section>
 <script>
 (()=>{let remaining=<%= question.seconds %>, elapsed=0;const timer=document.getElementById('timer'), hidden=document.getElementById('elapsedSeconds'), form=document.getElementById('answerForm');const tick=()=>{timer.textContent=remaining;timer.closest('.timer-pill').classList.toggle('urgent',remaining<=5);if(remaining<=0){hidden.value=elapsed;form.querySelectorAll('input[type=radio]').forEach(x=>x.disabled=true);if(!form.querySelector('input[name=answer]:checked')){const x=document.createElement('input');x.type='hidden';x.name='answer';x.value='';form.appendChild(x)}form.submit();return}remaining--;elapsed++;hidden.value=elapsed};setInterval(tick,1000);form.addEventListener('submit',()=>{hidden.value=elapsed;form.querySelectorAll('button').forEach(b=>b.disabled=true)});})();
 </script>
+<% } %>
 <%- include('partials/foot') %>
