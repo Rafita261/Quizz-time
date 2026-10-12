@@ -41,12 +41,12 @@ const seedQuestions = [
 function loadStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
-    const initial = { questions: seedQuestions, players: [], settings: { title: 'QuizTime', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: 'Ready? Scan the QR code and join the game!', quizOpen: true }, nextId: 8 };
+    const initial = { questions: seedQuestions, players: [], settings: { title: 'Social Network - How Social Network makes us Unsocial ???', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: 'Ready? Scan the QR code and join the game!', quizOpen: true }, nextId: 8 };
     fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
     return initial;
   }
   try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { return { questions: seedQuestions, players: [], settings: { title: 'QuizTime', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: '', quizOpen: true }, nextId: 8 }; }
+  catch { return { questions: seedQuestions, players: [], settings: { title: 'Social Network - How Social Network makes us Unsocial ???', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: '', quizOpen: true }, nextId: 8 }; }
 }
 let store = loadStore();
 // Shared quiz state: everyone uses the same start time.
