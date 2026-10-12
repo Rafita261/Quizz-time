@@ -29,13 +29,13 @@ app.use(session({
 }));
 
 const seedQuestions = [
-  { id: 1, type: 'qcm', text: "On average, how many close friends did a person have in 2001?", options: ['5', '10', '20', '50'], answer: '10', seconds: 30, points: 10, active: true },
-  { id: 2, type: 'qcm', text: 'About how many times a day do we check our phones?', options: ['50 times', '100 times', '150 times', '300 times'], answer: '150 times', seconds: 30, points: 10, active: true },
-  { id: 3, type: 'qcm', text: "What is the speaker's name?", options: ['Emma Watson', 'Allison Graham', 'Taylor Swift', 'Michelle Obama'], answer: 'Allison Graham', seconds: 30, points: 10, active: true },
-  { id: 4, type: 'qcm', text: 'What simple challenge does she suggest?', options: ['10 minutes a day', 'One hour without screens', 'A day without speaking', 'A week without music'], answer: 'One hour without screens', seconds: 30, points: 10, active: true },
-  { id: 5, type: 'qcm', text: "Name an example of an abbreviation mentioned in the video.", options: ['LOL', 'BRB', 'ASAP', 'FYI'], answer: 'LOL', seconds: 30, points: 10, active: true },
-  { id: 6, type: 'tf', text: 'Texting while driving is now one of the top causes of death for teenagers, even more than drinking and driving.', options: ['True', 'False'], answer: 'True', seconds: 45, points: 10, active: true },
-  { id: 7, type: 'tf', text: 'The speaker says that social media has no useful side and that we should stop using it completely.', options: ['True', 'False'], answer: 'False', seconds: 45, points: 10, active: true }
+  { id: 1, type: 'qcm', text: "On average, how many close friends did a person have in 2001?", options: ['5', '10', '20', '50'], answer: '10', seconds: 14, points: 10, active: true },
+  { id: 2, type: 'qcm', text: 'About how many times a day do we check our phones?', options: ['50 times', '100 times', '150 times', '300 times'], answer: '150 times', seconds: 14, points: 10, active: true },
+  { id: 3, type: 'qcm', text: "What is the speaker's name?", options: ['Emma Watson', 'Allison Graham', 'Taylor Swift', 'Michelle Obama'], answer: 'Allison Graham', seconds: 14, points: 10, active: true },
+  { id: 4, type: 'qcm', text: 'What simple challenge does she suggest?', options: ['10 minutes a day', 'One hour without screens', 'A day without speaking', 'A week without music'], answer: 'One hour without screens', seconds: 14, points: 10, active: true },
+  { id: 5, type: 'qcm', text: "Name an example of an abbreviation mentioned in the video.", options: ['LOL', 'BRB', 'ASAP', 'FYI'], answer: 'LOL', seconds: 14, points: 10, active: true },
+  { id: 6, type: 'tf', text: 'Texting while driving is now one of the top causes of death for teenagers, even more than drinking and driving.', options: ['True', 'False'], answer: 'True', seconds: 14, points: 10, active: true },
+  { id: 7, type: 'tf', text: 'The speaker says that social media has no useful side and that we should stop using it completely.', options: ['True', 'False'], answer: 'False', seconds: 14, points: 10, active: true }
 ];
 
 function loadStore() {
