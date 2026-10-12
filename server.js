@@ -130,7 +130,17 @@ app.post('/admin/login', async (req, res) => {
 }
 });
 app.post('/admin/logout', adminOnly, (req, res) => { req.session.isAdmin = false; res.redirect('/'); });
-app.get('/admin', adminOnly, (req, res) => res.render('admin', { questions: store.questions, players: [...store.players].sort((a,b)=>b.score-a.score), settings: store.settings, message: null }));
+app.get('/admin', adminOnly, (req, res) => {
+  console.log('Session ID :', req.sessionID);
+  console.log('Admin connecté :', req.session.isAdmin);
+
+  res.render('admin', {
+    questions: store.questions,
+    players: [...store.players].sort((a, b) => b.score - a.score),
+    settings: store.settings,
+    message: null
+  });
+});
 app.post('/admin/question', adminOnly, (req, res) => {
   const id = Number(req.body.id);
   const type = req.body.type === 'tf' ? 'tf' : 'qcm';
