@@ -1,0 +1,8 @@
+<%- include('partials/head', {settings}) %>
+<section class="hero">
+  <div class="hero-copy"><span class="eyebrow">LE QUIZ INTERACTIF</span><h1>Teste tes connaissances,<br><span>gagne des points !</span></h1><p>Réponds aux questions, joue contre la montre et grimpe dans le classement.</p><div class="feature-row"><span>☑ QCM</span><span>◉ Vrai / Faux</span><span>▦ QR Code</span><span>☺ Pseudo</span></div><a class="btn btn-bright" href="/join">Rejoindre la partie <span>→</span></a></div>
+  <div class="hero-art"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="brain">✳</div><div class="float-card card-a">⚡ <b>Bonus vitesse</b><small>Réponds vite !</small></div><div class="float-card card-b">🏆 <b>Classement live</b><small>À toi de jouer</small></div><div class="hero-number">01<span>/07</span></div></div>
+</section>
+<section class="three-grid"><article class="info-card"><span class="icon-box purple">▦</span><h3>Scanne & rejoins</h3><p>Un QR code, un pseudo, aucune création de compte.</p></article><article class="info-card"><span class="icon-box blue">◷</span><h3>Joue contre le temps</h3><p>Chaque question est chronométrée. La rapidité rapporte un bonus.</p></article><article class="info-card"><span class="icon-box pink">♛</span><h3>Monte au classement</h3><p>Les bonnes réponses et la vitesse font la différence.</p></article></section>
+<section class="bottom-cta"><div><span class="eyebrow">PRÊT À COMMENCER ?</span><h2><%= questionsCount %> questions t’attendent.</h2></div><a class="btn btn-primary" href="/join">Lancer le quiz →</a></section>
+<%- include('partials/foot') %>
