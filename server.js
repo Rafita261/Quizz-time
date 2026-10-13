@@ -41,19 +41,31 @@ const seedQuestions = [
 function loadStore() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
-    const initial = { questions: seedQuestions, players: [], settings: { title: 'Social Network - How Social Network makes us Unsocial ???', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: 'Ready? Scan the QR code and join the game!', quizOpen: true }, nextId: 8 };
+    const initial = { questions: seedQuestions, players: [], settings: { title: 'QuizTime', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: 'Ready? Scan the QR code and join the game!', quizOpen: true }, nextId: 8 };
     fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2));
     return initial;
   }
   try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { return { questions: seedQuestions, players: [], settings: { title: 'Social Network - How Social Network makes us Unsocial ???', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: '', quizOpen: true }, nextId: 8 }; }
+  catch { return { questions: seedQuestions, players: [], settings: { title: 'QuizTime', timeBonus: true, bonusMax: 5, showCorrectAnswer: true, lobbyMessage: '', quizOpen: true }, nextId: 8 }; }
 }
 let store = loadStore();
 // Shared quiz state: everyone uses the same start time.
 let quizState = 'lobby';
 let quizStartAt = null;
 let startTimer = null;
-function publicQuizState() { return { state: quizState, startAt: quizStartAt }; }
+let phase = 'lobby';
+let currentQuestionIndex = -1;
+let questionStartedAt = null;
+let questionEndsAt = null;
+let resultQuestionIndex = -1;
+let resultsUntil = null;
+let phaseTimer = null;
+function publicQuizState() {
+  return { state: quizState, startAt: quizStartAt, phase, questionIndex: currentQuestionIndex,
+    questionStartedAt, questionEndsAt, resultQuestionIndex, resultsUntil,
+    total: getPublicQuestions().length };
+}
+function emitQuizState() { io.emit('quiz-state', publicQuizState()); }
 io.on('connection', socket => socket.emit('quiz-state', publicQuizState()));
 function save() { fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2)); }
 function adminOnly(req, res, next) { if (!req.session.isAdmin) return res.redirect('/admin/login'); next(); }
@@ -77,7 +89,6 @@ app.get('/join', (req, res) => {
   QRCode.toDataURL(joinUrl, { margin: 1, width: 220 }, (err, qr) => res.render('join', { qr, settings: store.settings, error: null }));
 });
 app.post('/join', (req, res) => {
-  if (quizState !== 'lobby') return res.status(403).render('message', { title: 'Quiz already started', message: 'The game has started. You can no longer join this session.', link: '/' });
   if (!store.settings.quizOpen) return res.status(403).render('message', { title: 'Game closed', message: 'The host is not accepting new players right now.', link: '/' });
   const nickname = String(req.body.nickname || '').trim().replace(/[<>]/g, '').slice(0, 18);
   if (nickname.length < 2) {
@@ -87,27 +98,82 @@ app.post('/join', (req, res) => {
   store.players.push({ id, nickname, score: 0, answers: [], joinedAt: Date.now() });
   save(); req.session.playerId = id; res.redirect('/play');
 });
-app.get('/play', ensurePlayer, (req, res) => {
-  if (quizState !== 'started') {
-    return res.render('play', { player: req.player, question: null, index: 0, total: getPublicQuestions().length, settings: store.settings, quizState, quizStartAt });
-  }
+function beginQuestion(index) {
   const questions = getPublicQuestions();
-  const answered = req.player.answers.map(a => a.questionId);
-  const next = questions.find(q => !answered.includes(q.id));
-  if (!next) return res.redirect('/result');
-  res.render('play', { player: req.player, question: next, index: answered.length + 1, total: questions.length, settings: store.settings, quizState, quizStartAt });
+  if (index >= questions.length) {
+    quizState = 'finished'; phase = 'finished'; questionStartedAt = null; questionEndsAt = null;
+    emitQuizState(); return;
+  }
+  quizState = 'started'; phase = 'question'; currentQuestionIndex = index;
+  questionStartedAt = Date.now(); questionEndsAt = questionStartedAt + 14000;
+  resultQuestionIndex = index - 1;
+  emitQuizState();
+  if (phaseTimer) clearTimeout(phaseTimer);
+  phaseTimer = setTimeout(() => finishQuestion(index), Math.max(0, questionEndsAt - Date.now()));
+}
+function finishQuestion(index) {
+  if (quizState !== 'started' || currentQuestionIndex !== index || phase !== 'question') return;
+  const question = getPublicQuestions()[index];
+  if (!question) return;
+  // Missing answers become explicit timeouts; no client can submit after the shared deadline.
+  for (const player of store.players) {
+    if (!player.answers.some(a => a.questionId === question.id)) {
+      player.answers.push({ questionId: question.id, answer: '', correct: false, points: 0, elapsedSeconds: 14, timedOut: true });
+    }
+  }
+  save();
+  phase = 'results'; resultQuestionIndex = index; resultsUntil = Date.now() + 5000;
+  emitQuizState();
+  if (phaseTimer) clearTimeout(phaseTimer);
+  // Player timeline: 1-second break, independently of the 5-second presentation results.
+  phaseTimer = setTimeout(() => beginQuestion(index + 1), 1000);
+}
+function resetAndStartQuiz() {
+  if (startTimer) clearTimeout(startTimer);
+  if (phaseTimer) clearTimeout(phaseTimer);
+  store.players.forEach(player => { player.score = 0; player.answers = []; });
+  save(); currentQuestionIndex = -1; questionStartedAt = null; questionEndsAt = null;
+  resultQuestionIndex = -1; resultsUntil = null; phase = 'countdown'; quizState = 'countdown';
+  quizStartAt = Date.now() + 10000; emitQuizState();
+  startTimer = setTimeout(() => { quizStartAt = null; beginQuestion(0); }, Math.max(0, quizStartAt - Date.now()));
+}
+app.get('/play', ensurePlayer, (req, res) => {
+  const questions = getPublicQuestions();
+  if (quizState === 'lobby' || quizState === 'countdown') {
+    return res.render('play', { player: req.player, question: null, index: 0, total: questions.length, settings: store.settings, quizState, quizStartAt, phase, questionStartedAt, questionEndsAt, alreadyAnswered: false });
+  }
+  if (quizState === 'finished') return res.redirect('/result');
+  const question = questions[currentQuestionIndex];
+  if (!question || phase !== 'question' || Date.now() >= questionEndsAt) {
+    return res.render('play', { player: req.player, question: null, index: Math.max(0, currentQuestionIndex + 1), total: questions.length, settings: store.settings, quizState, quizStartAt, phase, questionStartedAt, questionEndsAt, alreadyAnswered: false });
+  }
+  const alreadyAnswered = req.player.answers.some(a => a.questionId === question.id);
+  res.render('play', { player: req.player, question: alreadyAnswered ? null : question, index: currentQuestionIndex + 1, total: questions.length, settings: store.settings, quizState, quizStartAt, phase, questionStartedAt, questionEndsAt, alreadyAnswered });
 });
 app.post('/answer', ensurePlayer, (req, res) => {
-  if (quizState !== 'started') return res.redirect('/play');
-  const question = getPublicQuestions().find(q => q.id === Number(req.body.questionId));
-  if (!question) return res.redirect('/play');
+  if (quizState !== 'started' || phase !== 'question' || Date.now() >= questionEndsAt) return res.redirect('/play');
+  const question = getPublicQuestions()[currentQuestionIndex];
+  if (!question || question.id !== Number(req.body.questionId)) return res.redirect('/play');
   if (req.player.answers.some(a => a.questionId === question.id)) return res.redirect('/play');
-  const elapsed = Math.max(0, Math.min(question.seconds, Number(req.body.elapsedSeconds) || 0));
+  const elapsed = Math.max(0, Math.min(14, (Date.now() - questionStartedAt) / 1000));
   const answer = String(req.body.answer || '');
-  const points = scoreFor(question, answer, elapsed);
+  const points = scoreFor({ ...question, seconds: 14 }, answer, elapsed);
   req.player.answers.push({ questionId: question.id, answer, correct: answer === String(question.answer), points, elapsedSeconds: elapsed });
   req.player.score += points; save(); res.redirect('/play');
 });
+app.get('/presentation', (req, res) => res.render('presentation', { settings: store.settings, state: publicQuizState(), data: presentationData() }));
+function presentationData() {
+  const questions = getPublicQuestions();
+  const qi = resultQuestionIndex;
+  const question = qi >= 0 ? questions[qi] : null;
+  const answers = question ? store.players.map(p => ({ player: p, answer: p.answers.find(a => a.questionId === question.id) })).filter(x => x.answer && !x.answer.timedOut) : [];
+  const distribution = question ? question.options.map(option => ({ option, count: answers.filter(x => x.answer.answer === option).length })) : [];
+  const ranking = [...store.players].sort((a,b) => b.score-a.score || a.joinedAt-b.joinedAt).map((p,i)=>({ rank:i+1, nickname:p.nickname, score:p.score }));
+  return { phase, state: quizState, questionNumber: qi + 1, total: questions.length, questionText: question ? question.text : null,
+    correctAnswer: question && store.settings.showCorrectAnswer ? question.answer : null, distribution, ranking, resultsUntil,
+    questionIndex: currentQuestionIndex, questionEndsAt, questionStartedAt, startAt: quizStartAt };
+}
+app.get('/presentation-data', (req, res) => res.json(presentationData()));
 app.get('/result', ensurePlayer, (req, res) => {
   const ranking = [...store.players].sort((a, b) => b.score - a.score || a.joinedAt - b.joinedAt);
   const position = ranking.findIndex(p => p.id === req.player.id) + 1;
@@ -127,18 +193,8 @@ app.post('/admin/login', async (req, res) => {
   res.status(401).render('admin-login', { error: 'Incorrect username or password.' });
 });
 app.post('/admin/start-quiz', adminOnly, (req, res) => {
-  if (quizState === 'started') return res.redirect('/admin');
-  if (quizState === 'countdown') return res.redirect('/admin');
   if (!getPublicQuestions().length) return res.status(400).send('Add at least one active question before starting the quiz.');
-  quizState = 'countdown';
-  quizStartAt = Date.now() + 10000;
-  io.emit('quiz-state', publicQuizState());
-  if (startTimer) clearTimeout(startTimer);
-  startTimer = setTimeout(() => {
-    quizState = 'started';
-    io.emit('quiz-state', publicQuizState());
-  }, Math.max(0, quizStartAt - Date.now()));
-  res.redirect('/admin');
+  resetAndStartQuiz(); res.redirect('/admin');
 });
 app.post('/admin/logout', adminOnly, (req, res) => { req.session.isAdmin = false; res.redirect('/'); });
 app.get('/admin', adminOnly, (req, res) => res.render('admin', { questions: store.questions, players: [...store.players].sort((a,b)=>b.score-a.score), settings: store.settings, message: null, quizState, quizStartAt }));

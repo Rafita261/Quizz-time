@@ -35,3 +35,12 @@ The QR code is generated for `/join` using the hostname used to access the appli
 
 ## MVP limitations
 The timer runs in the browser and data is stored in a JSON file. For high-traffic events or high-stakes competitions, use a database (SQLite/PostgreSQL), server-side real-time synchronization, and stronger server-side validation. The admin page includes a setting for showing correct answers for future development, but this version does not automatically reveal correct answers after each question.
+
+## Live quiz timing and presentation screen
+
+- Each question has a server-controlled 14-second answer window.
+- After the question closes, players wait 1 second before the next question starts.
+- The presentation screen displays the completed question's answer distribution for 5 seconds, independently of the players' timeline. This means the first 4 seconds of the next question overlap with the previous results screen.
+- Players can join while a quiz is running (when **Accept players** is enabled) and join the currently active question.
+- In the admin dashboard, use **Restart quiz** to reset scores/answers and restart from question 1 after a 10-second countdown.
+- Open `/presentation` on a separate display/projector for live results and the leaderboard.
